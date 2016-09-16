@@ -177,8 +177,10 @@ void print_format(iconv_t converter, const mrss_item_t *item, const char *format
 			}
 			if (info) {
 				info = my_convert(converter,info);
-				if(info)
+				if(info) {
 					write(1,info,strlen(info));
+					free(info);
+				}
 			}
 		}
 		ptr = &(c[2]);
