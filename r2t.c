@@ -129,6 +129,66 @@ char* my_convert(iconv_t converter, const char *input)
 	return output_start;
 }
 
+void print_format(iconv_t converter, const mrss_item_t *item, const char *format)
+{
+	if( !format )
+		return;
+
+	const char *c;
+	const char *ptr = format;
+	const char *end = &(format[strlen(format)]);
+	while ((c = strchr (ptr, '%'))) {
+		if (&(c[1]) == end) {
+			break;
+		}
+		if (c[1] == '%') {
+			write(1,ptr,c-ptr+1);
+		} else {
+			const char *info = NULL;
+			switch(c[1]) {
+			case 't':
+				info = item->title;
+				break;
+			case 'l':
+				info = item->link;
+				break;
+			case 'e':
+				info = item->enclosure_url;
+				break;
+			case 'd':
+				info = item->description;
+				break;
+			case 'p':
+				info = item->pubDate;
+				break;
+			case 'a':
+				info = item->author;
+				break;
+			case 'c':
+				info = item->comments;
+				break;
+			case 'g':
+				info = item->guid;
+			default:
+				break;
+			}
+			if (c != ptr) {
+				write(1,ptr,c-ptr);
+			}
+			if (info) {
+				info = my_convert(converter,info);
+				if(info)
+					write(1,info,strlen(info));
+			}
+		}
+		ptr = &(c[2]);
+	}
+	if (ptr != end) {
+		write(1,ptr,strlen(ptr));
+	}
+	write(1,"\n",1);
+}
+
 void usage(void)
 {
 	version();
@@ -142,6 +202,7 @@ void usage(void)
 	printf("-c	show item's comments\n");
 	printf("-g	show item's GUID\n");
 	printf("-N	do not show headings\n");
+	printf("-f fmt	format output using fmt (%%t for title and %%o where o is an option above [ledpacg])\n");
 	printf("-b x	limit description/comments to x bytes\n");
 	printf("-z	continue even if there are XML parser errors in the RSS feed\n");
 	printf("-Z x	print string 'x' before headings\n");
@@ -185,10 +246,11 @@ int main(int argc, char *argv[])
 	char *current_encoding = NULL;
 	char reverse = 0;
 	iconv_t converter = 0;
+	char *format = 0;
 
 	memset(&mot, 0x00, sizeof(mot));
 
-	while((sw = getopt(argc, argv, "A:Z:1b:PHztledrpacgu:Ni:n:x:y:vVh")) != -1)
+	while((sw = getopt(argc, argv, "A:Z:1b:PHztledrpacgu:f:Ni:n:x:y:vVh")) != -1)
 	{
 		switch(sw)
 		{
@@ -315,6 +377,10 @@ int main(int argc, char *argv[])
 
 				url[n_url++] = optarg;
 
+				break;
+
+			case 'f':
+				format = optarg;
 				break;
 
 			case 'i':
@@ -504,6 +570,12 @@ int main(int argc, char *argv[])
 				}
 
 				n_shown++;
+
+				if(format) {
+					print_format(converter,item_cur,format);
+					item_cur = item_cur -> next;
+					continue;
+				}
 
 				if (show_link + show_enclosure_url + show_description + show_pubdate + show_author + show_comments > 1)
 					printf("\n");
