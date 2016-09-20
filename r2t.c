@@ -129,13 +129,14 @@ char* my_convert(iconv_t converter, const char *input)
 	return output_start;
 }
 
-void print_format(iconv_t converter, const mrss_item_t *item, const char *format)
+void print_format(iconv_t converter, const mrss_item_t *item, const char *format, int strip_html, int bytes_limit)
 {
 	if( !format )
 		return;
 	
 	size_t i;
 	char *info = NULL;
+	char *stripped = NULL;
 	const size_t formatlen = strlen(format);
 
 	for( i = 0 ; i < formatlen ; i++ ) {
@@ -163,6 +164,8 @@ void print_format(iconv_t converter, const mrss_item_t *item, const char *format
 				break;
 			case 'd':
 				info = item->description;
+				if (strip_html && info)
+					stripped = remove_html_tags(info);
 				break;
 			case 'p':
 				info = item->pubDate;
@@ -172,6 +175,8 @@ void print_format(iconv_t converter, const mrss_item_t *item, const char *format
 				break;
 			case 'c':
 				info = item->comments;
+				if (strip_html && info)
+					stripped = remove_html_tags(info);
 				break;
 			case 'g':
 				info = item->guid;
@@ -179,10 +184,18 @@ void print_format(iconv_t converter, const mrss_item_t *item, const char *format
 				break;
 		}
 		if (info) {
+			if(stripped)
+				info = stripped;
+			if (bytes_limit != 0 && (format[i] == 'c' || format[i] == 'd' ) && bytes_limit < strlen(info))
+				info[bytes_limit] = 0x00;
 			info = my_convert(converter,info);
-			if(info) {
+			if (info) {
 				fputs(info,stdout);
 				free(info);
+			}
+			if ( stripped ) {
+				free(stripped);
+				stripped = NULL;
 			}
 		}
 	}
@@ -572,7 +585,7 @@ int main(int argc, char *argv[])
 				n_shown++;
 
 				if(format) {
-					print_format(converter,item_cur,format);
+					print_format(converter,item_cur,format,strip_html,bytes_limit);
 					item_cur = item_cur -> next;
 					continue;
 				}
