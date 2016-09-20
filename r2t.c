@@ -133,19 +133,25 @@ void print_format(iconv_t converter, const mrss_item_t *item, const char *format
 {
 	if( !format )
 		return;
+	
+	size_t i;
+	char *info = NULL;
+	const size_t formatlen = strlen(format);
 
-	const char *c;
-	const char *ptr = format;
-	const char *end = &(format[strlen(format)]);
-	while ((c = strchr (ptr, '%'))) {
-		if (&(c[1]) == end) {
-			break;
+	for( i = 0 ; i < formatlen ; i++ ) {
+		if (format[i] != '%') {
+			putchar(format[i]);
+			continue;
 		}
-		if (c[1] == '%') {
-			write(1,ptr,c-ptr+1);
-		} else {
-			const char *info = NULL;
-			switch(c[1]) {
+		if (++i == formatlen)
+			break;
+
+		if (format[i] == '%') {
+			putchar(format[i]);
+			continue;
+		}
+
+		switch(format[i]) {
 			case 't':
 				info = item->title;
 				break;
@@ -171,24 +177,16 @@ void print_format(iconv_t converter, const mrss_item_t *item, const char *format
 				info = item->guid;
 			default:
 				break;
-			}
-			if (c != ptr) {
-				write(1,ptr,c-ptr);
-			}
-			if (info) {
-				info = my_convert(converter,info);
-				if(info) {
-					write(1,info,strlen(info));
-					free(info);
-				}
+		}
+		if (info) {
+			info = my_convert(converter,info);
+			if(info) {
+				fputs(info,stdout);
+				free(info);
 			}
 		}
-		ptr = &(c[2]);
 	}
-	if (ptr != end) {
-		write(1,ptr,strlen(ptr));
-	}
-	write(1,"\n",1);
+	puts("");
 }
 
 void usage(void)
